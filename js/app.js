@@ -12,7 +12,7 @@
     return e;
   };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const L = GA.geneLetter;
+  const L = GA.letraGene;
 
   // Dados iniciais (seção 6.1)
   const EXAMPLE = [
@@ -263,7 +263,7 @@
 
   function updateControls() {
     const valid = lastValidation ? lastValidation.ok : true;
-    const ready = engine && !dirty && !engine.finished;
+    const ready = engine && !dirty && !engine.finalizado;
     $('#btn-run').disabled = !(ready && mode !== 'running');
     $('#btn-pause').disabled = mode !== 'running';
     $('#btn-step').disabled = !(ready && mode !== 'running');
@@ -283,9 +283,9 @@
     } else if (mode === 'idle') {
       st.textContent = 'Geração 0 pronta. Clique em Executar ou em Avançar uma geração.';
     } else if (mode === 'running') {
-      st.textContent = `Executando: geração ${engine.generation} de ${cfg.generations}.`;
+      st.textContent = `Executando: geração ${engine.geracao} de ${cfg.generations}.`;
     } else if (mode === 'paused') {
-      st.textContent = `Pausado na geração ${engine.generation} de ${cfg.generations}. O estado foi preservado.`;
+      st.textContent = `Pausado na geração ${engine.geracao} de ${cfg.generations}. O estado foi preservado.`;
     } else {
       st.textContent = `Execução encerrada após ${cfg.generations} ${cfg.generations === 1 ? 'geração' : 'gerações'}.`;
     }
@@ -303,7 +303,7 @@
     runToken++;
     abortAnim();
     cfg = lastValidation.cfg;
-    engine = new GA.Engine(cfg);
+    engine = new GA.AlgoritmoGenetico(cfg);
     writeUrl();
     mode = 'idle';
     dirty = false;
@@ -312,19 +312,19 @@
     $('#history-body').innerHTML = '';
     $('#log-gen').innerHTML = '';
     renderAll();
-    const repaired = engine.logs[0].individuals.filter((i) => i.repair.length).length;
+    const repaired = engine.registros[0].individuals.filter((i) => i.repair.length).length;
     $('#stage-body').innerHTML = '';
     setCaption(`Geração 0 criada com semente ${cfg.seed}: ${cfg.popSize} indivíduos sorteados gene a gene; ${repaired} ${repaired === 1 ? 'precisou' : 'precisaram'} de reparação. Os detalhes estão no registro.`);
     updateControls();
   }
 
   async function run() {
-    if (!engine || dirty || engine.finished || mode === 'running') return;
+    if (!engine || dirty || engine.finalizado || mode === 'running') return;
     mode = 'running';
     updateControls();
     const token = ++runToken;
-    while (mode === 'running' && token === runToken && !engine.finished) {
-      const log = engine.step();
+    while (mode === 'running' && token === runToken && !engine.finalizado) {
+      const log = engine.proximaGeracao();
       selectedLogGen = log.generation;
       renderAll();
       updateControls();
@@ -333,7 +333,7 @@
       else { showStaticSummary(log); await plainWait(140 / speed()); }
     }
     if (token !== runToken) return;
-    if (engine.finished) finish();
+    if (engine.finalizado) finish();
   }
 
   function pause() {
@@ -345,12 +345,12 @@
   }
 
   async function stepOnce() {
-    if (!engine || dirty || engine.finished || mode === 'running') return;
+    if (!engine || dirty || engine.finalizado || mode === 'running') return;
     if (mode === 'idle') mode = 'paused';
-    const log = engine.step();
+    const log = engine.proximaGeracao();
     selectedLogGen = log.generation;
     renderAll();
-    if (engine.finished) finish(); else updateControls();
+    if (engine.finalizado) finish(); else updateControls();
     const am = $('#anim-mode').value;
     if (am !== 'off') await playGeneration(log, am);
     else showStaticSummary(log);
@@ -366,8 +366,8 @@
   // Renderização
   function renderAll() {
     if (!engine) return;
-    const h = engine.history[engine.history.length - 1];
-    $('#m-gen').textContent = `${engine.generation} de ${cfg.generations}`;
+    const h = engine.historico[engine.historico.length - 1];
+    $('#m-gen').textContent = `${engine.geracao} de ${cfg.generations}`;
     $('#m-best').textContent = pts(h.bestHund);
     $('#m-mean').textContent = mean2(h.meanHund);
     $('#m-acc').textContent = pts(h.bestSoFarHund);
@@ -389,11 +389,11 @@
   }
 
   function renderBest() {
-    const b = engine.best;
+    const b = engine.melhor;
     const ev = b.ev;
     const box = $('#best-card');
     box.innerHTML = '';
-    $('#best-title').textContent = engine.finished ? 'Resultado final' : 'Melhor solução até agora';
+    $('#best-title').textContent = engine.finalizado ? 'Resultado final' : 'Melhor solução até agora';
     box.appendChild(plainChrom(ev.chromosome));
     const chosen = ev.selected.length
       ? '<ul>' + ev.selected.map((i) => `<li><b>${L(i)}</b> ${esc(cfg.projects[i].name)}</li>`).join('') + '</ul>'
@@ -407,7 +407,7 @@
       `<dt>Encontrada na</dt><dd>geração ${b.generation}, posição #${b.index}</dd>`);
     box.appendChild(dl);
     noTranslate(box);
-    if (engine.finished) {
+    if (engine.finalizado) {
       box.appendChild(el('p', 'final-note', 'Melhor indivíduo encontrado em toda a execução, incluindo a geração 0. Ele não é necessariamente o ótimo global.'));
     }
   }
@@ -415,9 +415,9 @@
   function renderPopulation() {
     const ol = $('#population');
     ol.innerHTML = '';
-    const h = engine.history[engine.history.length - 1];
-    const eliteN = engine.generation > 0 ? cfg.eliteCount : 0;
-    engine.population.forEach((ind, i) => {
+    const h = engine.historico[engine.historico.length - 1];
+    const eliteN = engine.geracao > 0 ? cfg.eliteCount : 0;
+    engine.populacao.forEach((ind, i) => {
       const li = el('li');
       if (i === h.bestIndex) li.classList.add('is-best');
       if (i < eliteN) li.classList.add('is-elite');
@@ -425,13 +425,13 @@
       li.title = (i < eliteN ? 'Elite copiado da geração anterior. ' : '') + `Custo ${brl(ind.ev.costCents)}, aptidão ${pts(ind.ev.benefitHund)}`;
       ol.appendChild(li);
     });
-    $('#pop-sub').textContent = `geração ${engine.generation}; contorno = melhor da geração${eliteN ? '; índice verde = elite' : ''}`;
+    $('#pop-sub').textContent = `geração ${engine.geracao}; contorno = melhor da geração${eliteN ? '; índice verde = elite' : ''}`;
   }
 
   function renderHistory() {
     const body = $('#history-body');
-    for (let i = renderedHistory; i < engine.history.length; i++) {
-      const h = engine.history[i];
+    for (let i = renderedHistory; i < engine.historico.length; i++) {
+      const h = engine.historico[i];
       const tr = el('tr', null,
         `<td><button type="button" aria-label="Abrir o registro da geração ${h.generation}">${h.generation}</button></td><td>${pts(h.bestHund)}</td><td class="mono">${h.bestChromosome}</td>` +
         `<td>${mean2(h.meanHund)}</td><td>${pts(h.bestSoFarHund)}</td><td class="mono">${h.bestSoFarChromosome}</td>`);
@@ -443,14 +443,14 @@
       });
       body.appendChild(tr);
     }
-    renderedHistory = engine.history.length;
+    renderedHistory = engine.historico.length;
     body.querySelectorAll('tr').forEach((tr) => tr.classList.toggle('sel', Number(tr.dataset.gen) === selectedLogGen));
     if (mode === 'running') body.closest('.table-scroll').scrollTop = 1e9;
   }
 
   function renderLogSelect() {
     const sel = $('#log-gen');
-    for (let g = sel.options.length; g <= engine.generation; g++) {
+    for (let g = sel.options.length; g <= engine.geracao; g++) {
       const o = el('option', null, String(g));
       o.value = g;
       sel.appendChild(o);
@@ -495,7 +495,7 @@
     const box = $('#log');
     box.innerHTML = '';
     if (!engine) return;
-    const log = engine.logs[selectedLogGen];
+    const log = engine.registros[selectedLogGen];
     if (!log) { box.appendChild(el('p', 'empty', 'Sem registro para esta geração.')); return; }
 
     if (log.type === 'init') {
@@ -553,7 +553,7 @@
   }
 
   function showStaticSummary(log) {
-    const best = engine.history[log.generation];
+    const best = engine.historico[log.generation];
     setCaption(`Geração ${log.generation} produzida: ${log.pairs.length} ${log.pairs.length === 1 ? 'par' : 'pares'} de pais, ${log.elite.length} ${log.elite.length === 1 ? 'elite' : 'elites'}. Melhor aptidão ${pts(best.bestHund)} (<code>${best.bestChromosome}</code>).`);
     $('#stage-body').innerHTML = '';
   }
@@ -571,7 +571,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     if (!engine) return;
-    const hist = engine.history;
+    const hist = engine.historico;
     const pad = { l: 44, r: 12, t: 10, b: 28 };
     const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
     const maxX = Math.max(cfg.generations, 1);
@@ -908,17 +908,17 @@
   async function animateTest64() {
     if (mode === 'running') pause();
     const P = V.PROJECTS, B = V.BUDGET;
-    const [k1, k2] = GA.crossover(GA.fromStr('1100'), GA.fromStr('0011'), 2);
+    const [k1, k2] = GA.cruzar(GA.transformarEmGenes('1100'), GA.transformarEmGenes('0011'), 2);
     const kids = [[k1, [true, false, false, false]], [k2, [false, false, false, false]]].map(([k, mask]) => {
-      const m = GA.mutate(k, mask);
-      const r = GA.repair(m.genes, P, B);
-      return { beforeMutation: GA.toStr(k), flipped: m.flipped, afterMutation: GA.toStr(m.genes), repair: r.steps, final: r.evaluation, placedAt: 0 };
+      const m = GA.mutar(k, mask);
+      const r = GA.reparar(m.genes, P, B);
+      return { beforeMutation: GA.transformarEmTexto(k), flipped: m.flipped, afterMutation: GA.transformarEmTexto(m.genes), repair: r.steps, final: r.evaluation, placedAt: 0 };
     });
     const pair = {
       pair: 1, controlled: true, tournaments: [],
       parents: [{ index: '–', chromosome: '1100', fitnessHund: 1200 }, { index: '–', chromosome: '0011', fitnessHund: 1100 }],
       crossover: { draw: 0, rate: 1, happened: true, cut: 2 },
-      offspring: [GA.toStr(k1), GA.toStr(k2)], discardedSecond: false, children: kids,
+      offspring: [GA.transformarEmTexto(k1), GA.transformarEmTexto(k2)], discardedSecond: false, children: kids,
     };
     abortAnim();
     const tok = animToken;
@@ -1013,7 +1013,7 @@
     $('#anim-skip').addEventListener('click', () => {
       if (!animating) return;
       abortAnim();
-      if (engine) setCaption(`Animação pulada. A geração ${engine.generation} já está calculada; veja o registro abaixo.`);
+      if (engine) setCaption(`Animação pulada. A geração ${engine.geracao} já está calculada; veja o registro abaixo.`);
       $('#stage-body').innerHTML = '';
     });
     $('#log-gen').addEventListener('change', (e) => {
