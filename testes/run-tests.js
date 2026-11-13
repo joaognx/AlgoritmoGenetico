@@ -15,7 +15,7 @@ console.log(`\n${ok}/${tests.length} testes aprovados\n`);
 const full = V.fullRun();
 console.log('Histórico da execução completa (semente 42):');
 console.log('ger | melhor | cromossomo | média | acumulado');
-for (const h of full.engine.history) {
+for (const h of full.engine.historico) {
   console.log(`${h.generation} | ${h.bestHund / 100} | ${h.bestChromosome} | ${(h.meanHund / 100).toFixed(2)} | ${h.bestSoFarHund / 100} (${h.bestSoFarChromosome})`);
 }
 
