@@ -1,36 +1,35 @@
 # Projetos do campus por algoritmo genético
 
-Simulador de algoritmo genético (AG) que escolhe projetos de melhoria de um campus com orçamento limitado: maximiza a soma dos benefícios sem ultrapassar o orçamento. Atividade prática da disciplina de Inteligência Artificial, UFPI, período 2026.2.
+Simulador de algoritmo genético que escolhe projetos de melhoria de um campus com orçamento limitado: maximiza a soma dos benefícios sem ultrapassar o orçamento. Atividade prática da disciplina de Inteligência Artificial, UFPI, período 2026.2.
 
-- **Aplicação publicada:** https://joaognx.github.io/AlgoritmoGenetico/
+- **Aplicação:** https://joaognx.github.io/AlgoritmoGenetico/
 - **Repositório:** https://github.com/joaognx/AlgoritmoGenetico
 
 ## Autores
 
 - João Gabriel Nunes Oliveira Lima
-- Arthur Sobreira Alexandrino
 - Mayra Gabriela Sousa da Silva
+- Arthur Sobreira Alexandrino
 
 ## Como usar
 
-Abra o link da aplicação; não há login nem instalação. Para rodar localmente, basta abrir `index.html` no navegador.
+Abra o link da aplicação; não há login nem instalação. Para rodar no computador, abra o `index.html` no navegador ou, dentro da pasta do projeto, rode `python -m http.server 8000` e acesse `http://localhost:8000`.
 
-1. A tela já abre com os dados da seção 6.1 (quatro projetos, orçamento de R$ 7.000) e a configuração da seção 6.5. A geração 0 é criada automaticamente.
-2. Edite, adicione ou remova projetos (entre 4 e 15) e ajuste os parâmetros. Qualquer alteração bloqueia Executar e Avançar até que você clique em **Reiniciar**.
-3. **Executar** roda as gerações em sequência; **Pausar** interrompe preservando o estado, e Executar retoma de onde parou. **Avançar uma geração** produz exatamente uma geração e mantém a execução pausada. **Reiniciar** limpa o histórico e recria a geração 0 com a semente configurada. A execução encerra ao atingir o número de gerações.
-4. A **Bancada** anima as operações reais de cada geração: elitismo, torneios, ponto de corte, troca de segmentos, bits mutados e remoções da reparação (com a barra de custo frente ao orçamento). Você escolhe animar o primeiro par de cada geração, todos os pares, ou nada, e ajusta a velocidade. No registro, o botão “Animar este par” reproduz qualquer par de qualquer geração.
-5. O **Registro das operações** mostra, por geração, os candidatos e vencedores de cada torneio, o sorteio e o ponto de corte do cruzamento, os filhos, os genes invertidos, cada passo da reparação, a avaliação e a posição de cada filho na nova população. Cada par termina com um resumo no formato do enunciado. Clicar numa linha do histórico abre o registro daquela geração.
-6. **Testes de validação** executa na própria página todos os testes da seção 6, e “Animar o teste 6.4” mostra na bancada o cruzamento e a mutação controlados.
-7. Ao clicar em Reiniciar, a configuração aplicada vai para o endereço da página (`?cfg=…`). Copiar esse link reabre exatamente os mesmos dados, parâmetros e semente, o que facilita reproduzir uma execução.
-8. Remover um projeto ou restaurar o exemplo pode ser desfeito pelo botão **Desfazer**, que aparece por 10 segundos. Se houver alterações ainda não aplicadas, o navegador pede confirmação antes de sair da página.
+1. A tela abre com os quatro projetos de exemplo (orçamento de R$ 7.000) e a configuração padrão. A geração 0 já é criada.
+2. Edite, adicione ou remova projetos (entre 4 e 15) e ajuste os parâmetros. Depois de qualquer alteração, clique em **Reiniciar** para aplicá-la.
+3. **Executar** roda as gerações em sequência. **Pausar** interrompe e guarda o estado, e Executar continua de onde parou. **Avançar uma geração** produz uma única geração e mantém a execução pausada. **Reiniciar** limpa o histórico e recria a geração 0 com a semente configurada.
+4. A **Bancada** anima as operações reais de cada geração: elitismo, torneios, ponto de corte, troca de segmentos, bits mutados e remoções da reparação. Escolha animar o primeiro par de cada geração, todos os pares ou nada, e ajuste a velocidade.
+5. O **Registro das operações** mostra, geração por geração, os candidatos de cada torneio, o sorteio e o corte do cruzamento, os filhos, os genes invertidos, cada passo da reparação e a posição de cada filho na nova população. O botão “Animar este par” reproduz qualquer par na bancada, e clicar numa geração do histórico abre o registro dela.
+6. **Executar testes**, no fim da página, roda os testes de validação. **Animar o teste 6.4** mostra na bancada o cruzamento e a mutação controlados do enunciado.
+7. Ao clicar em Reiniciar, a configuração vai para o endereço da página. Copiar esse link reabre os mesmos dados, parâmetros e semente.
 
-Para rodar os testes no terminal: `node tests/run-tests.js`.
+Para rodar os testes no terminal (precisa do Node.js): `node tests/run-tests.js`.
 
-## Campos e validação
+## Parâmetros
 
 | Campo | Valor inicial | Regra |
 |---|---|---|
-| Projetos | dados da seção 6.1 | de 4 a 15 projetos; nome não vazio; custo positivo em reais com até duas casas decimais; benefício não negativo com até duas casas decimais |
+| Projetos | 4 projetos de exemplo | de 4 a 15; nome não vazio; custo positivo em reais com até duas casas decimais; benefício não negativo com até duas casas decimais |
 | Orçamento disponível (R$) | 7000 | não negativo, até duas casas decimais |
 | Tamanho da população | 20 | inteiro ≥ 2 |
 | Número de gerações | 50 | inteiro ≥ 1 (a população inicial é a geração 0) |
@@ -40,60 +39,50 @@ Para rodar os testes no terminal: `node tests/run-tests.js`.
 | Indivíduos de elite | 1 | inteiro entre 0 e o tamanho da população menos 1 |
 | Semente aleatória | 42 | inteiro |
 
-Valores em reais aceitam vírgula ou ponto para os centavos (`4000,50` ou `4000.50`), sem separador de milhar. Campos vazios ou inválidos ficam destacados com a mensagem do problema, e Reiniciar fica bloqueado até a correção.
+Valores em reais aceitam vírgula ou ponto para os centavos (`4000,50` ou `4000.50`), sem separador de milhar. Campos inválidos ficam destacados com a mensagem do problema, e a execução fica bloqueada até a correção.
 
-## Descrição da solução
+## Como foi feito
 
-**Representação.** Cada indivíduo é um cromossomo binário com um gene por projeto, na ordem da tabela (A, B, C…): 1 seleciona o projeto, 0 o exclui. Internamente, custos são guardados em centavos e benefícios em centésimos de ponto, como inteiros, para evitar erros de arredondamento de ponto flutuante.
+**Representação.** Cada solução é um cromossomo binário com um gene por projeto, na ordem da tabela (A, B, C…): 1 seleciona o projeto e 0 o exclui. Custos são guardados em centavos e benefícios em centésimos de ponto, como inteiros, para evitar erros de arredondamento.
 
-**Avaliação.** Soma custo e benefício dos genes 1. A aptidão é o benefício total da solução já reparada; a seleção vazia é válida e tem aptidão 0.
+**Avaliação.** Soma o custo e o benefício dos projetos selecionados. A aptidão é o benefício total da solução já reparada; a seleção vazia é válida e tem aptidão 0.
 
-**Reparação.** Enquanto o custo passa do orçamento, remove o projeto selecionado com a menor razão benefício/custo; em empate, o de menor índice. É aplicada à população inicial e a cada filho antes da avaliação.
+**Reparação.** Enquanto o custo passa do orçamento, remove o projeto selecionado com a menor razão benefício/custo; em empate, o de menor índice. Vale para a população inicial e para cada filho, antes da avaliação.
 
-**Geração 0.** Cada gene de cada indivíduo é sorteado de forma independente, com probabilidade 1/2 de ser 1.
+**População inicial.** Cada gene é sorteado de forma independente, com probabilidade 1/2 de ser 1.
 
-**Seleção por torneio.** Cada pai vem de um torneio independente: sorteiam-se k candidatos distintos (Fisher-Yates parcial) e vence o de maior aptidão; em empate, o de menor índice na população.
+**Seleção por torneio.** Cada pai vem de um torneio independente: sorteiam-se candidatos distintos e vence o de maior aptidão; em empate, o de menor índice na população.
 
-**Cruzamento de um ponto.** Para cada par, um sorteio decide se há cruzamento (sorteio < taxa). Se houver, o corte é sorteado entre o primeiro e o penúltimo gene (após o gene 1 até após o gene n−1) e os segmentos finais são trocados. Sem cruzamento, os filhos copiam os pais.
+**Cruzamento de um ponto.** Para cada par, um sorteio decide se há cruzamento. Se houver, o corte é sorteado entre o primeiro e o penúltimo gene e os segmentos finais são trocados; se não houver, os filhos copiam os pais.
 
-**Mutação por inversão de bits.** Cada gene de cada filho é invertido se o sorteio for menor que a taxa de mutação.
+**Mutação.** Cada gene de cada filho é invertido com a probabilidade da taxa de mutação.
 
-**Elitismo.** Os E melhores da geração anterior (empate pelo menor índice) são copiados sem alterações para as primeiras posições. As vagas restantes recebem filhos, e os pais são sempre selecionados na população anterior. Se sobrar uma única vaga, só o primeiro filho do último par é mantido. O tamanho da população é constante e repetições são permitidas.
+**Elitismo.** Os melhores da geração anterior são copiados sem alterações para as primeiras posições. As vagas restantes recebem filhos, sempre com pais escolhidos na população anterior. Se sobrar uma única vaga, só o primeiro filho do último par é mantido. O tamanho da população é constante.
 
-**Encerramento.** Após o número configurado de gerações, a aplicação mostra a melhor solução encontrada em toda a execução, incluindo a geração 0, com cromossomo, projetos, custo total, benefício total e saldo.
+**Encerramento.** Após o número de gerações configurado, a aplicação mostra a melhor solução encontrada em toda a execução, incluindo a geração 0: cromossomo, projetos, custo total, benefício total e saldo.
 
-**Gerador com semente e ordem dos sorteios.** Usamos o gerador mulberry32, implementado em `js/ga.js`. Para sementes entre 0 e 2³²−1 o estado inicial é a própria semente. A ordem dos sorteios é fixa, o que torna cada execução reproduzível:
+**Semente e reprodutibilidade.** O gerador pseudoaleatório (mulberry32) foi implementado no próprio projeto. A ordem dos sorteios é fixa, então a mesma semente com os mesmos dados repete a execução: primeiro a geração 0, indivíduo por indivíduo e gene por gene; depois, em cada par, os candidatos dos dois torneios, o sorteio do cruzamento, o ponto de corte (se houver cruzamento) e a mutação gene a gene de cada filho.
 
-1. geração 0: indivíduo por indivíduo, gene por gene;
-2. em cada par: candidatos do torneio do pai 1, candidatos do torneio do pai 2, sorteio do cruzamento, ponto de corte (só se houver cruzamento), mutação gene a gene do filho 1 e, se houver vaga para ele, do filho 2.
-
-## Estrutura
+### Estrutura dos arquivos
 
 ```
 index.html            interface
 css/style.css         estilos (tema claro e escuro)
-js/ga.js              núcleo do AG: gerador com semente, avaliação, reparação, operadores e motor
-js/validation.js      testes da seção 6, usados pela página e pelo Node
-js/app.js             interface, controles, histórico, gráfico, registro e animações
+js/ga.js              núcleo do algoritmo: gerador com semente, avaliação, reparação, operadores e motor
+js/validation.js      testes de validação, usados pela página e pelo Node
+js/app.js             controles, histórico, gráfico, registro e animações
 tests/run-tests.js    executa os testes no terminal
 ```
 
-## Bibliotecas
+### Tecnologias e bibliotecas
 
-Nenhuma biblioteca de JavaScript foi usada. O algoritmo genético, o gerador pseudoaleatório com semente, o gráfico (canvas) e as animações (CSS e JavaScript) foram escritos para este trabalho. A página carrega apenas as fontes Geist e Geist Mono do Google Fonts, só para a aparência; sem conexão, o navegador usa fontes do sistema.
+HTML, CSS e JavaScript puros, executados no navegador, sem servidor de aplicação. Nenhuma biblioteca foi usada: o algoritmo genético, o gerador com semente, o gráfico (canvas) e as animações foram escritos para este trabalho. A página carrega apenas as fontes Geist e Geist Mono do Google Fonts; sem conexão, o navegador usa fontes do sistema.
 
-## Interface e acessibilidade
-
-O visual segue referências de design usadas como orientação; nenhum código delas faz parte do projeto:
-
-- [awesome-design-md](https://github.com/voltagent/awesome-design-md), arquivo `design-md/vercel/DESIGN.md`: fontes Geist e Geist Mono, escala de cinzas, cartões brancos com sombra em camadas e anel interno, botão primário em tinta escura, raio de 6px nos controles, rótulos técnicos em fonte monoespaçada e a malha de gradiente da marca só no topo. A bancada usa o “painel de código” escuro do sistema, nos dois temas, para as animações se destacarem.
-- [taste-skill](https://github.com/leonxlnx/taste-skill): camada de movimento (o título entra uma vez ao carregar; botões sobem 1px no hover e afundam no clique; links desenham a linha; anel de foco de 2px). As regras pensadas para sites de empresa, como fotos e uma seção por tela, não se aplicam a um simulador.
-- [Web Interface Guidelines](https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines), da Vercel: link para pular à simulação, foco visível, erro ao lado do campo e foco no primeiro erro ao clicar em Reiniciar, alvos de toque de 44px no celular, `prefers-reduced-motion` respeitado, animações só com `transform` e `opacity`, algarismos tabulares, formatação por `Intl`, cromossomos marcados para não serem traduzidos automaticamente, `theme-color` e estado da configuração no endereço.
-- [playwright-cli](https://github.com/microsoft/playwright-cli): usado durante o desenvolvimento para abrir a página num navegador sem interface e capturar telas do topo, da bancada durante a animação, do tema escuro e do celular.
+O visual segue o sistema de design da Vercel publicado no repositório [awesome-design-md](https://github.com/voltagent/awesome-design-md), a camada de movimento da [taste-skill](https://github.com/leonxlnx/taste-skill) e as [Web Interface Guidelines](https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines) da Vercel. As telas foram conferidas com o [playwright-cli](https://github.com/microsoft/playwright-cli). Nenhum código dessas referências faz parte do projeto.
 
 ## Resultados dos testes
 
-Todos os testes abaixo foram executados com `node tests/run-tests.js` (os mesmos resultados aparecem no botão “Executar testes” da página). Os testes com operações controladas usam as funções do núcleo diretamente; os testes de taxas e de orçamento rodam o motor completo.
+Os testes foram executados com `node tests/run-tests.js`; os mesmos resultados aparecem no botão “Executar testes” da página. Todos usam os dados da seção 6.1 do enunciado: A. Melhoria da iluminação (R$ 4.000; 7), B. Instalação de bicicletários (R$ 3.000; 5), C. Aquisição de bancos (R$ 2.000; 3), D. Reforma de espaço de convivência (R$ 5.000; 8), orçamento de R$ 7.000. Os testes de operações controladas chamam as funções do núcleo diretamente; os de taxas e de orçamento rodam o motor completo.
 
 | Seção | Teste | Entrada e parâmetros | Esperado | Obtido | Resultado |
 |---|---|---|---|---|---|
@@ -115,15 +104,13 @@ Todos os testes abaixo foram executados com `node tests/run-tests.js` (os mesmos
 | 6.5 | Execução completa (semente 42) | dados 6.1; população 20; 50 gerações; cruzamento 80%; mutação 5%; torneio 2; elite 1; semente 42 | 51 registros; melhor acumulado nunca diminui; melhor da população nunca diminui (elite 1); totais coerentes, custo ≤ R$ 7.000, benefício ≤ 12 | 51 registros; acumulado não diminui; melhor da população não diminui; melhor solução 1100 (projetos A e B; custo R$ 7.000; benefício 12; saldo R$ 0), encontrada na geração 0; totais coerentes | ✅ passou |
 | 6.5 | Reprodutibilidade e elitismo | mesma configuração executada duas vezes | históricos idênticos; o elite de cada geração é o melhor da anterior, sem alterações | históricos idênticos; elite sempre copiado sem alterações | ✅ passou |
 
-**Conclusão dos testes controlados (6.2, 6.3, 6.4 e 6.6).** Todos coincidem com os valores de referência do enunciado: a avaliação de 1100 retorna A e B, R$ 7.000, benefício 12 e saldo zero; as nove soluções viáveis têm os custos e benefícios listados; a reparação de 1111 segue exatamente 1111 → 1101 → 1100; o cruzamento e a mutação controlados geram 0111 e 0000, que viram 0100 (aptidão 5) e 0000 (aptidão 0). As taxas de 0% e 100% se comportam como especificado, o torneio escolhe 1100 e, no empate, o menor índice. Com orçamento zero, toda a população é 0000 em todas as gerações; com R$ 14.000, 1111 é viável com benefício 23 e saldo zero.
+**Conclusão.** Os 17 testes passaram e os testes controlados coincidem com os valores de referência do enunciado: a avaliação de 1100 retorna A e B, R$ 7.000, benefício 12 e saldo zero; a reparação de 1111 segue 1111 → 1101 → 1100; o cruzamento e a mutação controlados geram 0111 e 0000, reparados para 0100 (aptidão 5) e 0000 (aptidão 0). As taxas de 0% e 100% se comportam como especificado, o torneio escolhe 1100 e, no empate, o menor índice. Com orçamento zero, toda a população é 0000; com R$ 14.000, 1111 é viável, com benefício 23 e saldo zero.
 
-### 6.5 Execução completa (semente 42)
+### Execução completa (6.5)
 
-Parâmetros: dados da seção 6.1; população 20; 50 gerações; cruzamento 80%; mutação 5% por gene; torneio de tamanho 2; 1 indivíduo de elite; semente 42.
+Parâmetros: população 20; 50 gerações; cruzamento 80%; mutação 5% por gene; torneio de tamanho 2; 1 indivíduo de elite; semente 42.
 
-Resultado final: cromossomo **1100**, projetos A (Melhoria da iluminação) e B (Instalação de bicicletários), custo R$ 7.000, benefício 12, saldo R$ 0. É o ótimo global, e ele já estava presente na geração 0 (posição #6).
-
-Verificações: o histórico tem 51 registros (geração 0 e mais 50); o melhor acumulado nunca diminui; com 1 elite, a melhor aptidão da população também nunca diminui; os totais são coerentes com o cromossomo. Duas execuções com a mesma semente produzem históricos idênticos.
+Resultado: cromossomo **1100**, projetos A e B, custo R$ 7.000, benefício 12, saldo R$ 0. É o ótimo global, já presente na geração 0 (posição #6). O histórico tem 51 registros (geração 0 e mais 50); o melhor acumulado e, com 1 elite, a melhor aptidão da população nunca diminuem; os totais são coerentes com o cromossomo; duas execuções com a mesma semente geram históricos idênticos. A média da população oscila (por exemplo, de 12,00 na geração 8 para 10,90 na 9), porque cruzamento e mutação criam filhos piores que os pais; o elitismo garante apenas que o melhor não se perde.
 
 <details>
 <summary>Histórico completo das 51 gerações</summary>
@@ -184,11 +171,9 @@ Verificações: o histórico tem 51 registros (geração 0 e mais 50); o melhor 
 
 </details>
 
-Observe que a média da população oscila (por exemplo, cai de 12,00 na geração 8 para 10,90 na 9): a mutação e o cruzamento criam filhos piores que os pais, o que é esperado. O elitismo garante apenas que o melhor indivíduo não se perde.
-
 ### Efeito da taxa de mutação: 1% e 20%
 
-Mesmos parâmetros da seção 6.5, trocando só a taxa de mutação; sementes 1 a 5.
+Mesmos parâmetros da execução completa, mudando só a taxa de mutação; sementes 1 a 5.
 
 | Mutação | Semente | Melhor benefício final | Cromossomo | Geração em que surgiu | Média da população na geração 50 |
 |---|---|---|---|---|---|
@@ -208,12 +193,6 @@ Mesmos parâmetros da seção 6.5, trocando só a taxa de mutação; sementes 1 
 | 1% | 12,00 | 5 de 5 | 11,81 |
 | 20% | 12,00 | 5 de 5 | 8,93 |
 
-**Análise.** As duas taxas atingiram o ótimo (12) nas cinco execuções, com média do melhor benefício final igual a 12 em ambos os casos. Isso se explica pelo tamanho da instância: com quatro projetos existem apenas 16 cromossomos, e 4 deles (1100, 1101, 1110 e 1111) são reparados para 1100. Cada indivíduo da geração 0 tem, portanto, 1/4 de chance de já ser o ótimo, e a chance de nenhum dos 20 sê-lo é 0,75²⁰ ≈ 0,3%. Por isso o ótimo apareceu na geração 0 em quase todas as execuções (a exceção foi a semente 3, em que ele surgiu na geração 2 com mutação de 1% e na geração 1 com 20%), e o elitismo o preservou até o fim.
+**Análise.** As duas taxas atingiram o ótimo (12) nas cinco execuções. Isso se explica pelo tamanho da instância: com quatro projetos há só 16 cromossomos, e 4 deles (1100, 1101, 1110 e 1111) são reparados para 1100. Cada indivíduo da geração 0 tem, portanto, 1/4 de chance de já ser o ótimo, e a chance de nenhum dos 20 sê-lo é 0,75²⁰ ≈ 0,3%. Por isso o ótimo apareceu na geração 0 em quase todas as execuções (a exceção foi a semente 3, em que surgiu na geração 2 com 1% e na geração 1 com 20%), e o elitismo o preservou.
 
-A diferença entre as taxas aparece na população, não no melhor indivíduo. Com 1%, a população converge: na geração 50 a média ficou em 11,81, com três execuções em que todos os indivíduos eram 1100. Com 20%, cada filho de 4 genes sofre em média 0,8 inversão, muitos bons indivíduos são destruídos e a média final cai para 8,93. Uma taxa alta mantém mais diversidade, o que ajuda a escapar de ótimos locais em instâncias maiores, mas atrapalha a exploração das boas soluções já encontradas; uma taxa baixa explora bem, mas pode estagnar se a população convergir cedo para uma solução subótima. Nesta instância pequena a exploração quase não é necessária, então a taxa baixa resultou em populações melhores sem perder o ótimo. Com mais projetos (por exemplo, 15, com 32.768 combinações), o resultado poderia ser diferente, e nenhuma das duas taxas é superior em todos os casos.
-
-## Publicação no GitHub Pages
-
-1. Crie um repositório público e envie todos os arquivos deste projeto para a raiz.
-2. Em *Settings → Pages*, escolha *Deploy from a branch*, branch `main`, pasta `/ (root)`.
-3. Troque `SEU-USUARIO/ag-projetos-campus` pelo endereço real no link “Código no GitHub” do `index.html` e no topo deste README.
+A diferença aparece na população. Com 1%, ela converge: a média final foi 11,81, e em três execuções todos os indivíduos eram 1100. Com 20%, cada filho de 4 genes sofre em média 0,8 inversão, muitas boas soluções são destruídas e a média final cai para 8,93. Uma taxa alta mantém diversidade, o que ajuda a escapar de ótimos locais em instâncias maiores, mas atrapalha o aproveitamento das boas soluções; uma taxa baixa aproveita bem, mas pode estagnar se a população convergir cedo numa solução pior. Nesta instância pequena, a taxa baixa deu populações melhores sem perder o ótimo; com mais projetos, o resultado poderia ser outro, e nenhuma das duas taxas é superior em todos os casos.
