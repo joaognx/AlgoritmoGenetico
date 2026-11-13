@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Algoritmo genético: projetos do campus</title>
+  <meta name="description" content="Simulador de algoritmo genético para escolher projetos de melhoria de um campus com orçamento limitado.">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+  <script>document.documentElement.classList.add('js')</script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <a class="skip" href="#simulacao">Pular para a simulação</a>
+  <header class="topbar">
+    <div class="mesh" aria-hidden="true"></div>
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="badge-top enter-up d0"><span class="dot"></span>Inteligência Artificial, UFPI 2026.2</span>
+        <h1><span class="enter-mask"><span>Projetos do campus, escolhidos por evolução.</span></span></h1>
+        <p class="enter-up d1">Um algoritmo genético decide quais melhorias cabem no orçamento. Acompanhe cada torneio, corte, mutação e reparação.</p>
+      </div>
+      <nav class="toplinks enter-up d2" aria-label="Links">
+        <a class="btn primary" href="#simulacao">Ver a simulação</a>
+        <!-- Troque pelo endereço do seu repositório público -->
+        <a id="repo-link" class="btn" href="https://github.com/SEU-USUARIO/ag-projetos-campus" target="_blank" rel="noopener" translate="no">Código no GitHub</a>
+        <a class="btn ghost" href="#testes">Testes de validação</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- ============ Configuração ============ -->
+    <aside class="config" aria-label="Configuração">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Projetos</h2>
+          <span id="project-count" class="muted"></span>
+        </div>
+        <div class="projects-wrap">
+          <table class="projects" id="projects-table">
+            <thead>
+              <tr><th scope="col">Gene</th><th scope="col">Nome</th><th scope="col">Custo (R$)</th><th scope="col">Benefício</th><th scope="col"><span class="sr-only">Remover</span></th></tr>
+            </thead>
+            <tbody id="projects-body"></tbody>
+          </table>
+        </div>
+        <div class="row-actions">
+          <button type="button" id="add-project" class="btn ghost">Adicionar projeto</button>
+          <button type="button" id="load-example" class="btn ghost">Restaurar exemplo</button>
+        </div>
+        <div class="undo" id="undo" hidden>
+          <span id="undo-text" aria-live="polite"></span>
+          <button type="button" id="undo-btn" class="btn small-btn">Desfazer</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Parâmetros</h2>
+        <div class="fields">
+          <label class="field wide">
+            <span>Orçamento disponível (R$)</span>
+            <input id="f-budget" name="orcamento" placeholder="ex.: 7000 ou 7000,50…" spellcheck="false" inputmode="decimal" autocomplete="off">
+            <small class="err" data-for="f-budget"></small>
+          </label>
+          <label class="field">
+            <span>Tamanho da população</span>
+            <input id="f-pop" name="populacao" placeholder="ex.: 20…" spellcheck="false" inputmode="numeric" autocomplete="off">
+            <small class="err" data-for="f-pop"></small>
+          </label>
+          <label class="field">
+            <span>Número de gerações</span>
+            <input id="f-gens" name="geracoes" placeholder="ex.: 50…" spellcheck="false" inputmode="numeric" autocomplete="off">
+            <small class="err" data-for="f-gens"></small>
+          </label>
+          <label class="field">
+            <span>Taxa de cruzamento (%)</span>
+            <input id="f-cross" name="taxa_cruzamento" placeholder="ex.: 80…" spellcheck="false" inputmode="decimal" autocomplete="off">
+            <small class="hint">aplicada a cada par de pais</small>
+            <small class="err" data-for="f-cross"></small>
+          </label>
+          <label class="field">
+            <span>Taxa de mutação (%)</span>
+            <input id="f-mut" name="taxa_mutacao" placeholder="ex.: 5…" spellcheck="false" inputmode="decimal" autocomplete="off">
+            <small class="hint">aplicada a cada gene dos filhos</small>
+            <small class="err" data-for="f-mut"></small>
+          </label>
+          <label class="field">
+            <span>Tamanho do torneio</span>
+            <input id="f-tour" name="torneio" placeholder="ex.: 2…" spellcheck="false" inputmode="numeric" autocomplete="off">
+            <small class="err" data-for="f-tour"></small>
+          </label>
+          <label class="field">
+            <span>Indivíduos de elite</span>
+            <input id="f-elite" name="elite" placeholder="ex.: 1…" spellcheck="false" inputmode="numeric" autocomplete="off">
+            <small class="err" data-for="f-elite"></small>
+          </label>
+          <label class="field wide">
+            <span>Semente aleatória</span>
+            <input id="f-seed" name="semente" placeholder="ex.: 42…" spellcheck="false" inputmode="numeric" autocomplete="off">
+            <small class="err" data-for="f-seed"></small>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel controls">
+        <div class="btn-grid">
+          <button type="button" id="btn-run" class="btn primary">Executar</button>
+          <button type="button" id="btn-pause" class="btn">Pausar</button>
+          <button type="button" id="btn-step" class="btn">Avançar uma geração</button>
+          <button type="button" id="btn-reset" class="btn">Reiniciar</button>
+        </div>
+        <p id="run-status" class="status" role="status" aria-live="polite"></p>
+      </section>
+    </aside>
+
+    <!-- ============ Execução ============ -->
+    <main class="main" id="simulacao" tabindex="-1">
+      <section class="metrics" aria-label="Situação da execução">
+        <div class="metric">
+          <span class="m-label">Geração</span>
+          <span class="m-value" id="m-gen">0</span>
+        </div>
+        <div class="metric">
+          <span class="m-label">Melhor aptidão da geração</span>
+          <span class="m-value" id="m-best">0</span>
+        </div>
+        <div class="metric">
+          <span class="m-label">Aptidão média da população</span>
+          <span class="m-value" id="m-mean">0</span>
+        </div>
+        <div class="metric accent">
+          <span class="m-label">Melhor resultado acumulado</span>
+          <span class="m-value" id="m-acc">0</span>
+          <span class="m-sub" id="m-acc-sub" translate="no"></span>
+        </div>
+      </section>
+
+      <!-- Bancada de animação -->
+      <section class="panel bench" aria-label="Animação das operações">
+        <div class="bench-head">
+          <div>
+            <h2>Bancada</h2>
+            <p class="muted small">Reproduz as operações que o algoritmo realmente executou.</p>
+          </div>
+          <div class="bench-controls">
+            <label class="inline">
+              <span>Animar</span>
+              <select id="anim-mode">
+                <option value="first">O primeiro par de cada geração</option>
+                <option value="all">Todos os pares</option>
+                <option value="off">Nada (só registro)</option>
+              </select>
+            </label>
+            <label class="inline">
+              <span>Velocidade</span>
+              <input type="range" id="anim-speed" min="0" max="4" step="1" value="2">
+              <output id="anim-speed-out">1×</output>
+            </label>
+            <button type="button" id="anim-skip" class="btn ghost small-btn">Pular animação</button>
+          </div>
+        </div>
+        <div class="stage" id="stage">
+          <div class="stage-legend" aria-hidden="true">
+            <span><i class="sw sw-p1"></i>genes do pai 1</span>
+            <span><i class="sw sw-p2"></i>genes do pai 2</span>
+            <span><i class="sw sw-mut"></i>mutação</span>
+            <span><i class="sw sw-rm"></i>removido na reparação</span>
+            <span><i class="sw sw-elite"></i>elite</span>
+          </div>
+          <p class="stage-caption" id="stage-caption" aria-live="polite">Clique em Executar ou Avançar uma geração para ver as operações.</p>
+          <div class="stage-body" id="stage-body" translate="no"></div>
+        </div>
+      </section>
+
+      <div class="two-col">
+        <section class="panel" aria-labelledby="best-title">
+          <h2 id="best-title">Melhor solução até agora</h2>
+          <div id="best-card" class="best-card"></div>
+        </section>
+        <section class="panel" aria-labelledby="pop-title">
+          <div class="panel-head">
+            <h2 id="pop-title">População atual</h2>
+            <span class="muted small" id="pop-sub"></span>
+          </div>
+          <ol class="population" id="population" start="0" translate="no"></ol>
+        </section>
+      </div>
+
+      <section class="panel" aria-labelledby="evo-title">
+        <h2 id="evo-title">Evolução</h2>
+        <div class="chart-wrap">
+          <canvas id="chart" height="240" role="img" aria-label="Gráfico da melhor aptidão, aptidão média e melhor acumulado por geração"></canvas>
+          <div class="chart-legend">
+            <span><i class="ln ln-acc"></i>melhor acumulado</span>
+            <span><i class="ln ln-best"></i>melhor da geração</span>
+            <span><i class="ln ln-mean"></i>média da população</span>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="history">
+            <thead>
+              <tr>
+                <th scope="col">Geração</th>
+                <th scope="col">Melhor</th>
+                <th scope="col">Cromossomo</th>
+                <th scope="col">Média</th>
+                <th scope="col">Acumulado</th>
+                <th scope="col">Cromossomo acumulado</th>
+              </tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </div>
+        <p class="muted small">Clique no número de uma geração para abrir o registro dela.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="log-title">
+        <div class="panel-head">
+          <h2 id="log-title">Registro das operações</h2>
+          <label class="inline">
+            <span>Geração</span>
+            <select id="log-gen"></select>
+          </label>
+        </div>
+        <div id="log" class="log"></div>
+      </section>
+
+      <section class="panel" id="testes" aria-labelledby="tests-title">
+        <div class="panel-head">
+          <h2 id="tests-title">Testes de validação</h2>
+          <div class="row-actions" style="margin:0">
+            <button type="button" id="btn-anim64" class="btn ghost">Animar o teste 6.4</button>
+            <button type="button" id="btn-tests" class="btn">Executar testes</button>
+          </div>
+        </div>
+        <p class="muted small">Usam os dados da seção 6.1 e as mesmas funções do simulador, independentemente do que estiver na tela.</p>
+        <div id="tests-out"></div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="foot">
+    <p>Universidade Federal do Piauí, disciplina de Inteligência Artificial, 2026.2. Sem bibliotecas: o algoritmo, o gerador com semente, o gráfico e as animações foram escritos para este trabalho.</p>
+  </footer>
+
+  <script src="js/ga.js"></script>
+  <script src="js/validation.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
