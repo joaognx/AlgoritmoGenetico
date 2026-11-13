@@ -2,14 +2,14 @@
 
 Simulador de algoritmo genético (AG) que escolhe projetos de melhoria de um campus com orçamento limitado: maximiza a soma dos benefícios sem ultrapassar o orçamento. Atividade prática da disciplina de Inteligência Artificial, UFPI, período 2026.2.
 
-- **Aplicação publicada:** https://SEU-USUARIO.github.io/ag-projetos-campus/
-- **Repositório:** https://github.com/SEU-USUARIO/ag-projetos-campus
+- **Aplicação publicada:** https://joaognx.github.io/AlgoritmoGenetico/
+- **Repositório:** https://github.com/joaognx/AlgoritmoGenetico
 
 ## Autores
 
-- Nome completo 1 (matrícula)
-- Nome completo 2 (matrícula)
-- Nome completo 3 (matrícula)
+- João Gabriel Nunes Oliveira Lima
+- Arthur Sobreira Alexandrino
+- Mayra Gabriela Sousa da Silva
 
 ## Como usar
 
