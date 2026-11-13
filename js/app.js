@@ -188,7 +188,7 @@
         projects.splice(i, 1);
         renderProjects();
         onDataChanged();
-        offerUndo(`“${name}” removido.`, snap);
+        offerUndo(`“${name}” removido. Clique em Reiniciar para aplicar.`, snap);
       });
       td.appendChild(rm);
       tr.appendChild(td);
@@ -267,6 +267,9 @@
     $('#btn-run').disabled = !(ready && mode !== 'running');
     $('#btn-pause').disabled = mode !== 'running';
     $('#btn-step').disabled = !(ready && mode !== 'running');
+    const pendente = dirty || !valid;
+    $('#btn-reset').classList.toggle('primary', pendente);
+    $('#btn-run').classList.toggle('primary', !pendente);
     document.querySelectorAll('.replay').forEach((b) => { b.disabled = mode === 'running'; });
 
     const st = $('#run-status');
@@ -979,9 +982,12 @@
     });
     $('#add-project').addEventListener('click', () => {
       if (projects.length >= MAX_P) return;
-      projects.push({ name: `Projeto ${L(projects.length)}`, cost: '1000', benefit: '1' });
+      const snap = snapshot();
+      const nome = `Projeto ${L(projects.length)}`;
+      projects.push({ name: nome, cost: '1000', benefit: '1' });
       renderProjects();
       onDataChanged();
+      offerUndo(`“${nome}” adicionado. Edite os dados e clique em Reiniciar para usá-lo.`, snap);
       const inp = document.getElementById(`p-${projects.length - 1}-name`);
       inp.focus(); inp.select();
     });
