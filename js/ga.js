@@ -1,305 +1,516 @@
+
 /*
- * Núcleo do algoritmo genético para seleção de projetos (mochila 0/1).
- * Implementado do zero, sem bibliotecas. Funciona no navegador (window.GA)
- * e no Node (require('./ga.js')).
- *
- * Unidades internas (inteiros, para evitar erros de ponto flutuante):
- *   costCents   -> custo em centavos de real
- *   benefitHund -> benefício em centésimos de ponto
- *   aptidão     -> benefitHund da solução reparada
+ * Algoritmo genético para escolha de projetos (mochila 0/1).
  */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.GA = factory();
+
+(function (raiz, fabrica) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = fabrica();
+  } else {
+    raiz.GA = fabrica();
+  }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  /* ---------- Gerador pseudoaleatório com semente (mulberry32) ---------- */
+  // Converte a semente para um número que será usado no sorteio.
+  function converterSemente(semente) {
+    const numero = Math.trunc(Number(semente));
+    const parteBaixa = numero >>> 0;
+    const parteAlta = Math.floor(numero / 4294967296) >>> 0;
 
-  function seedToState(seed) {
-    const n = Math.trunc(Number(seed));
-    const lo = n >>> 0;                              // 32 bits baixos
-    const hi = Math.floor(n / 4294967296) >>> 0;     // bits altos (sementes grandes ou negativas)
-    return (lo ^ Math.imul(hi, 0x9E3779B1)) >>> 0;   // para 0 <= semente < 2^32, estado = semente
+    return (parteBaixa ^ Math.imul(parteAlta, 0x9E3779B1)) >>> 0;
   }
 
-  function createRng(seed) {
-    let a = seedToState(seed);
-    const rng = function () {
-      a = (a + 0x6D2B79F5) >>> 0;
-      let t = a;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296; // [0, 1)
+  // Gerador de números aleatórios.
+  function criarAleatorio(semente) {
+    let estado = converterSemente(semente);
+
+    const aleatorio = function () {
+      estado = (estado + 0x6D2B79F5) >>> 0;
+
+      let valor = estado;
+      valor = Math.imul(valor ^ (valor >>> 15), valor | 1);
+      valor ^= valor + Math.imul(valor ^ (valor >>> 7), valor | 61);
+
+      return ((valor ^ (valor >>> 14)) >>> 0) / 4294967296;
     };
-    rng.getState = () => a;
-    rng.setState = (s) => { a = s >>> 0; };
-    return rng;
+
+    aleatorio.obterEstado = () => estado;
+    aleatorio.definirEstado = (valor) => {
+      estado = valor >>> 0;
+    };
+
+    return aleatorio;
   }
 
-  /** Inteiro uniforme em [lo, hi], inclusive. */
-  function randInt(rng, lo, hi) {
-    return lo + Math.floor(rng() * (hi - lo + 1));
+  function sortearInteiro(aleatorio, minimo, maximo) {
+    return minimo + Math.floor(aleatorio() * (maximo - minimo + 1));
   }
 
-  /* ---------- Utilidades de cromossomo ---------- */
+  // Funções para trabalhar com os cromossomos.
+  const letraGene = (indice) => String.fromCharCode(65 + indice);
+  const transformarEmTexto = (genes) => genes.join('');
+  const transformarEmGenes = (texto) => texto.split('').map(Number);
 
-  const geneLetter = (i) => String.fromCharCode(65 + i);
-  const toStr = (genes) => genes.join('');
-  const fromStr = (s) => s.split('').map(Number);
+  // Calcula o custo e o benefício dos projetos selecionados.
+  function avaliar(genes, projetos, orcamentoCentavos) {
+    let custoCentavos = 0;
+    let beneficioCent = 0;
+    const selecionados = [];
 
-  /* ---------- Avaliação ---------- */
-
-  function evaluate(genes, projects, budgetCents) {
-    let costCents = 0, benefitHund = 0;
-    const selected = [];
     for (let i = 0; i < genes.length; i++) {
       if (genes[i] === 1) {
-        costCents += projects[i].costCents;
-        benefitHund += projects[i].benefitHund;
-        selected.push(i);
+        custoCentavos += projetos[i].costCents;
+        beneficioCent += projetos[i].benefitHund;
+        selecionados.push(i);
       }
     }
+
     return {
-      chromosome: toStr(genes),
-      selected,
-      costCents,
-      benefitHund,
-      balanceCents: budgetCents - costCents,
-      feasible: costCents <= budgetCents,
+      chromosome: transformarEmTexto(genes),
+      selected: selecionados,
+      costCents: custoCentavos,
+      benefitHund: beneficioCent,
+      balanceCents: orcamentoCentavos - custoCentavos,
+      feasible: custoCentavos <= orcamentoCentavos
     };
   }
 
-  /* ---------- Reparação ----------
-   * Enquanto o custo ultrapassar o orçamento, remove o projeto selecionado
-   * com a menor razão benefício/custo; em empate, o de menor índice.
-   * Custos são inteiros positivos; razões iguais produzem o mesmo double.
-   */
-  function repair(genes, projects, budgetCents) {
-    const g = genes.slice();
-    const steps = [];
-    let ev = evaluate(g, projects, budgetCents);
-    while (ev.costCents > budgetCents) {
-      let worst = -1, worstRatio = Infinity;
-      for (let i = 0; i < g.length; i++) {
-        if (g[i] !== 1) continue;
-        const ratio = projects[i].benefitHund / projects[i].costCents;
-        if (ratio < worstRatio) { worstRatio = ratio; worst = i; } // estrito: mantém o menor índice no empate
+  // Remove projetos até que o orçamento seja respeitado.
+  function reparar(genes, projetos, orcamentoCentavos) {
+    const novosGenes = genes.slice();
+    const etapas = [];
+
+    let resultado = avaliar(novosGenes, projetos, orcamentoCentavos);
+
+    while (resultado.costCents > orcamentoCentavos) {
+      let piorProjeto = -1;
+      let piorRazao = Infinity;
+
+      for (let i = 0; i < novosGenes.length; i++) {
+        if (novosGenes[i] === 1) {
+          const razao = projetos[i].benefitHund / projetos[i].costCents;
+
+          if (razao < piorRazao) {
+            piorRazao = razao;
+            piorProjeto = i;
+          }
+        }
       }
-      const before = ev;
-      g[worst] = 0;
-      ev = evaluate(g, projects, budgetCents);
-      steps.push({
-        removed: worst,
-        ratio: worstRatio,
-        before: before.chromosome,
-        beforeCostCents: before.costCents,
-        beforeBenefitHund: before.benefitHund,
-        after: ev.chromosome,
-        afterCostCents: ev.costCents,
-        afterBenefitHund: ev.benefitHund,
-      });
-    }
-    return { genes: g, steps, evaluation: ev };
-  }
 
-  /* ---------- Operadores ---------- */
+      const resultadoAnterior = resultado;
 
-  /** Cruzamento de um ponto. cut = quantidade de genes antes do corte (1..n-1). */
-  function crossover(p1, p2, cut) {
-    return [
-      p1.slice(0, cut).concat(p2.slice(cut)),
-      p2.slice(0, cut).concat(p1.slice(cut)),
-    ];
-  }
+      novosGenes[piorProjeto] = 0;
 
-  /** Inverte os genes indicados pela máscara (true = inverter). */
-  function mutate(genes, mask) {
-    const out = genes.slice();
-    const flipped = [];
-    for (let i = 0; i < out.length; i++) {
-      if (mask[i]) { out[i] = 1 - out[i]; flipped.push(i); }
-    }
-    return { genes: out, flipped };
-  }
+      resultado = avaliar(novosGenes, projetos, orcamentoCentavos);
 
-  /** Sorteia k índices distintos em [0, n) (Fisher-Yates parcial). */
-  function drawDistinct(rng, n, k) {
-    const idx = Array.from({ length: n }, (_, i) => i);
-    for (let i = 0; i < k; i++) {
-      const j = randInt(rng, i, n - 1);
-      const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
-    }
-    return idx.slice(0, k);
-  }
-
-  /** Vencedor do torneio: maior aptidão; empate -> menor índice na população. */
-  function tournamentWinner(candidates, fitness) {
-    let best = candidates[0];
-    for (const c of candidates) {
-      if (fitness[c] > fitness[best] || (fitness[c] === fitness[best] && c < best)) best = c;
-    }
-    return best;
-  }
-
-  /** Índices dos E melhores (aptidão decrescente; empate -> menor índice). */
-  function eliteIndices(fitness, count) {
-    const order = fitness.map((_, i) => i)
-      .sort((a, b) => (fitness[b] - fitness[a]) || (a - b));
-    return order.slice(0, count);
-  }
-
-  /* ---------- Motor do AG ----------
-   * Ordem dos sorteios (importante para a reprodutibilidade):
-   *  Geração 0: para cada indivíduo, para cada gene, rng() < 0,5 -> 1.
-   *  Gerações seguintes, para cada par, até completar a população:
-   *   1. torneio do pai 1: k índices distintos (Fisher-Yates parcial);
-   *   2. torneio do pai 2: idem, independente;
-   *   3. rng() < taxa de cruzamento -> cruza; se cruzar, corte = inteiro em [1, n-1];
-   *   4. mutação do filho 1: rng() < taxa, gene a gene;
-   *   5. mutação do filho 2 (só se houver vaga para ele): idem.
-   */
-  class Engine {
-    constructor(cfg) {
-      this.cfg = Object.assign({}, cfg);
-      this.n = cfg.projects.length;
-      this.rng = createRng(cfg.seed);
-      this.generation = 0;
-      this.history = [];
-      this.logs = [];
-      this.best = null; // melhor indivíduo de toda a execução
-      this._init();
-    }
-
-    get finished() { return this.generation >= this.cfg.generations; }
-
-    _makeInd(rep) { return { genes: rep.genes, ev: rep.evaluation }; }
-
-    _init() {
-      const { projects, budgetCents, popSize } = this.cfg;
-      const pop = [], events = [];
-      for (let i = 0; i < popSize; i++) {
-        const raw = [];
-        for (let j = 0; j < this.n; j++) raw.push(this.rng() < 0.5 ? 1 : 0);
-        const rep = repair(raw, projects, budgetCents);
-        pop.push(this._makeInd(rep));
-        events.push({ index: i, raw: toStr(raw), repair: rep.steps, final: rep.evaluation });
-      }
-      this.population = pop;
-      this.logs.push({ generation: 0, type: 'init', individuals: events });
-      this._record();
-    }
-
-    _record() {
-      const fit = this.population.map((p) => p.ev.benefitHund);
-      let bi = 0;
-      for (let i = 1; i < fit.length; i++) if (fit[i] > fit[bi]) bi = i;
-      const mean = fit.reduce((a, b) => a + b, 0) / fit.length;
-      const genBest = this.population[bi];
-      if (!this.best || genBest.ev.benefitHund > this.best.ev.benefitHund) {
-        this.best = { genes: genBest.genes.slice(), ev: genBest.ev, generation: this.generation, index: bi };
-      }
-      this.history.push({
-        generation: this.generation,
-        bestHund: genBest.ev.benefitHund,
-        bestChromosome: genBest.ev.chromosome,
-        bestIndex: bi,
-        meanHund: mean,
-        bestSoFarHund: this.best.ev.benefitHund,
-        bestSoFarChromosome: this.best.ev.chromosome,
-        bestSoFarGeneration: this.best.generation,
+      etapas.push({
+        removed: piorProjeto,
+        ratio: piorRazao,
+        before: resultadoAnterior.chromosome,
+        beforeCostCents: resultadoAnterior.costCents,
+        beforeBenefitHund: resultadoAnterior.benefitHund,
+        after: resultado.chromosome,
+        afterCostCents: resultado.costCents,
+        afterBenefitHund: resultado.benefitHund
       });
     }
 
-    _tournament(fit) {
-      const cands = drawDistinct(this.rng, this.cfg.popSize, this.cfg.tournamentSize);
-      const winner = tournamentWinner(cands, fit);
-      const top = Math.max(...cands.map((c) => fit[c]));
+    return {
+      genes: novosGenes,
+      steps: etapas,
+      evaluation: resultado
+    };
+  }
+
+  // Cruzamento de dois indivíduos.
+  function cruzar(pai1, pai2, corte) {
+    const filho1 = pai1.slice(0, corte).concat(pai2.slice(corte));
+    const filho2 = pai2.slice(0, corte).concat(pai1.slice(corte));
+
+    return [filho1, filho2];
+  }
+
+  // Altera os genes indicados pela máscara.
+  function mutar(genes, mascara) {
+    const novosGenes = genes.slice();
+    const alterados = [];
+
+    for (let i = 0; i < novosGenes.length; i++) {
+      if (mascara[i]) {
+        novosGenes[i] = 1 - novosGenes[i];
+        alterados.push(i);
+      }
+    }
+
+    return {
+      genes: novosGenes,
+      flipped: alterados
+    };
+  }
+
+  // Sorteia índices sem repetir.
+  function sortearIndices(aleatorio, quantidade, total) {
+    const indices = Array.from({ length: quantidade }, (_, i) => i);
+
+    for (let i = 0; i < total; i++) {
+      const sorteado = sortearInteiro(aleatorio, i, quantidade - 1);
+
+      const temporario = indices[i];
+      indices[i] = indices[sorteado];
+      indices[sorteado] = temporario;
+    }
+
+    return indices.slice(0, total);
+  }
+
+  // Escolhe o indivíduo com maior aptidão.
+  function vencedorTorneio(candidatos, aptidoes) {
+    let melhor = candidatos[0];
+
+    for (const candidato of candidatos) {
+      if (
+        aptidoes[candidato] > aptidoes[melhor] ||
+        (aptidoes[candidato] === aptidoes[melhor] && candidato < melhor)
+      ) {
+        melhor = candidato;
+      }
+    }
+
+    return melhor;
+  }
+
+  // Separa os melhores indivíduos da população.
+  function obterMelhores(aptidoes, quantidade) {
+    const ordem = aptidoes.map((_, indice) => indice);
+
+    ordem.sort((a, b) => {
+      if (aptidoes[a] === aptidoes[b]) {
+        return a - b;
+      }
+
+      return aptidoes[b] - aptidoes[a];
+    });
+
+    return ordem.slice(0, quantidade);
+  }
+
+  // Classe principal do algoritmo genético.
+  class AlgoritmoGenetico {
+    constructor(configuracao) {
+      this.config = Object.assign({}, configuracao);
+      this.quantidadeGenes = configuracao.projects.length;
+
+      this.aleatorio = criarAleatorio(configuracao.seed);
+
+      this.geracao = 0;
+      this.historico = [];
+      this.registros = [];
+      this.melhor = null;
+
+      this.iniciar();
+    }
+
+    get finalizado() {
+      return this.geracao >= this.config.generations;
+    }
+
+    criarIndividuo(reparacao) {
       return {
-        candidates: cands.map((i) => ({ index: i, chromosome: this.population[i].ev.chromosome, fitnessHund: fit[i] })),
-        winner,
-        tie: cands.filter((c) => fit[c] === top).length > 1,
+        genes: reparacao.genes,
+        ev: reparacao.evaluation
       };
     }
 
-    /** Produz exatamente uma nova geração. Retorna o log dela, ou null se já terminou. */
-    step() {
-      if (this.finished) return null;
-      const { projects, budgetCents, popSize, eliteCount, crossoverRate, mutationRate } = this.cfg;
-      const prev = this.population;
-      const fit = prev.map((p) => p.ev.benefitHund);
-      const next = [];
-      const log = { generation: this.generation + 1, type: 'gen', elite: [], pairs: [] };
+    // Monta a população inicial.
+    iniciar() {
+      const { projects, budgetCents, popSize } = this.config;
 
-      for (const idx of eliteIndices(fit, eliteCount)) {
-        next.push({ genes: prev[idx].genes.slice(), ev: prev[idx].ev });
-        log.elite.push({ from: idx, to: next.length - 1, chromosome: prev[idx].ev.chromosome, fitnessHund: fit[idx] });
-      }
+      const populacao = [];
+      const eventos = [];
 
-      let pairNo = 0;
-      while (next.length < popSize) {
-        const t1 = this._tournament(fit);
-        const t2 = this._tournament(fit);
-        const p1 = prev[t1.winner].genes, p2 = prev[t2.winner].genes;
+      for (let i = 0; i < popSize; i++) {
+        const genes = [];
 
-        const draw = this.rng();
-        const happened = draw < crossoverRate;
-        let cut = null, c1, c2;
-        if (happened) {
-          cut = randInt(this.rng, 1, this.n - 1);
-          [c1, c2] = crossover(p1, p2, cut);
-        } else {
-          c1 = p1.slice(); c2 = p2.slice();
+        for (let j = 0; j < this.quantidadeGenes; j++) {
+          genes.push(this.aleatorio() < 0.5 ? 1 : 0);
         }
 
-        const keepBoth = popSize - next.length >= 2;
-        const kids = keepBoth ? [c1, c2] : [c1];
-        const children = [];
-        for (const k of kids) {
-          const mask = [];
-          for (let j = 0; j < this.n; j++) mask.push(this.rng() < mutationRate);
-          const m = mutate(k, mask);
-          const rep = repair(m.genes, projects, budgetCents);
-          next.push(this._makeInd(rep));
-          children.push({
-            beforeMutation: toStr(k),
-            flipped: m.flipped,
-            afterMutation: toStr(m.genes),
-            repair: rep.steps,
-            final: rep.evaluation,
-            placedAt: next.length - 1,
-          });
-        }
+        const reparacao = reparar(genes, projects, budgetCents);
 
-        log.pairs.push({
-          pair: ++pairNo,
-          tournaments: [t1, t2],
-          parents: [
-            { index: t1.winner, chromosome: toStr(p1), fitnessHund: fit[t1.winner] },
-            { index: t2.winner, chromosome: toStr(p2), fitnessHund: fit[t2.winner] },
-          ],
-          crossover: { draw, rate: crossoverRate, happened, cut },
-          offspring: [toStr(c1), toStr(c2)],
-          discardedSecond: !keepBoth,
-          children,
+        populacao.push(this.criarIndividuo(reparacao));
+
+        eventos.push({
+          index: i,
+          raw: transformarEmTexto(genes),
+          repair: reparacao.steps,
+          final: reparacao.evaluation
         });
       }
 
-      this.population = next;
-      this.generation++;
-      this.logs.push(log);
-      this._record();
-      return log;
+      this.populacao = populacao;
+
+      this.registros.push({
+        generation: 0,
+        type: 'init',
+        individuals: eventos
+      });
+
+      this.registrar();
     }
 
-    runToEnd() { while (!this.finished) this.step(); return this; }
+    // Guarda os resultados de cada geração.
+    registrar() {
+      const aptidoes = this.populacao.map(
+        (individuo) => individuo.ev.benefitHund
+      );
+
+      let indiceMelhor = 0;
+
+      for (let i = 1; i < aptidoes.length; i++) {
+        if (aptidoes[i] > aptidoes[indiceMelhor]) {
+          indiceMelhor = i;
+        }
+      }
+
+      const media =
+        aptidoes.reduce((soma, valor) => soma + valor, 0) / aptidoes.length;
+
+      const melhorGeracao = this.populacao[indiceMelhor];
+
+      if (
+        this.melhor === null ||
+        melhorGeracao.ev.benefitHund > this.melhor.ev.benefitHund
+      ) {
+        this.melhor = {
+          genes: melhorGeracao.genes.slice(),
+          ev: melhorGeracao.ev,
+          generation: this.geracao,
+          index: indiceMelhor
+        };
+      }
+
+      this.historico.push({
+        generation: this.geracao,
+        bestHund: melhorGeracao.ev.benefitHund,
+        bestChromosome: melhorGeracao.ev.chromosome,
+        bestIndex: indiceMelhor,
+        meanHund: media,
+        bestSoFarHund: this.melhor.ev.benefitHund,
+        bestSoFarChromosome: this.melhor.ev.chromosome,
+        bestSoFarGeneration: this.melhor.generation
+      });
+    }
+
+    // Faz a seleção por torneio.
+    torneio(aptidoes) {
+      const candidatos = sortearIndices(
+        this.aleatorio,
+        this.config.popSize,
+        this.config.tournamentSize
+      );
+
+      const vencedor = vencedorTorneio(candidatos, aptidoes);
+      const maiorAptidao = Math.max(
+        ...candidatos.map((indice) => aptidoes[indice])
+      );
+
+      return {
+        candidates: candidatos.map((indice) => ({
+          index: indice,
+          chromosome: this.populacao[indice].ev.chromosome,
+          fitnessHund: aptidoes[indice]
+        })),
+
+        winner: vencedor,
+
+        tie: candidatos.filter(
+          (indice) => aptidoes[indice] === maiorAptidao
+        ).length > 1
+      };
+    }
+
+    // Cria uma nova geração.
+    proximaGeracao() {
+      if (this.finalizado) {
+        return null;
+      }
+
+      const {
+        projects,
+        budgetCents,
+        popSize,
+        eliteCount,
+        crossoverRate,
+        mutationRate
+      } = this.config;
+
+      const populacaoAnterior = this.populacao;
+      const aptidoes = populacaoAnterior.map(
+        (individuo) => individuo.ev.benefitHund
+      );
+
+      const novaPopulacao = [];
+
+      const registro = {
+        generation: this.geracao + 1,
+        type: 'gen',
+        elite: [],
+        pairs: []
+      };
+
+      // Os melhores são mantidos na nova população.
+      const melhores = obterMelhores(aptidoes, eliteCount);
+
+      for (const indice of melhores) {
+        novaPopulacao.push({
+          genes: populacaoAnterior[indice].genes.slice(),
+          ev: populacaoAnterior[indice].ev
+        });
+
+        registro.elite.push({
+          from: indice,
+          to: novaPopulacao.length - 1,
+          chromosome: populacaoAnterior[indice].ev.chromosome,
+          fitnessHund: aptidoes[indice]
+        });
+      }
+
+      let numeroPar = 0;
+
+      while (novaPopulacao.length < popSize) {
+        const torneio1 = this.torneio(aptidoes);
+        const torneio2 = this.torneio(aptidoes);
+
+        const pai1 = populacaoAnterior[torneio1.winner].genes;
+        const pai2 = populacaoAnterior[torneio2.winner].genes;
+
+        const sorteio = this.aleatorio();
+        const houveCruzamento = sorteio < crossoverRate;
+
+        let corte = null;
+        let filho1;
+        let filho2;
+
+        if (houveCruzamento) {
+          corte = sortearInteiro(
+            this.aleatorio,
+            1,
+            this.quantidadeGenes - 1
+          );
+
+          [filho1, filho2] = cruzar(pai1, pai2, corte);
+        } else {
+          filho1 = pai1.slice();
+          filho2 = pai2.slice();
+        }
+
+        const manterDois = popSize - novaPopulacao.length >= 2;
+
+        const filhos = manterDois ? [filho1, filho2] : [filho1];
+        const resultadosFilhos = [];
+
+        // Aplica mutação e verifica o orçamento dos filhos.
+        for (const filho of filhos) {
+          const mascara = [];
+
+          for (let j = 0; j < this.quantidadeGenes; j++) {
+            mascara.push(this.aleatorio() < mutationRate);
+          }
+
+          const mutacao = mutar(filho, mascara);
+
+          const reparacao = reparar(
+            mutacao.genes,
+            projects,
+            budgetCents
+          );
+
+          novaPopulacao.push(this.criarIndividuo(reparacao));
+
+          resultadosFilhos.push({
+            beforeMutation: transformarEmTexto(filho),
+            flipped: mutacao.flipped,
+            afterMutation: transformarEmTexto(mutacao.genes),
+            repair: reparacao.steps,
+            final: reparacao.evaluation,
+            placedAt: novaPopulacao.length - 1
+          });
+        }
+
+        registro.pairs.push({
+          pair: ++numeroPar,
+
+          tournaments: [torneio1, torneio2],
+
+          parents: [
+            {
+              index: torneio1.winner,
+              chromosome: transformarEmTexto(pai1),
+              fitnessHund: aptidoes[torneio1.winner]
+            },
+            {
+              index: torneio2.winner,
+              chromosome: transformarEmTexto(pai2),
+              fitnessHund: aptidoes[torneio2.winner]
+            }
+          ],
+
+          crossover: {
+            draw: sorteio,
+            rate: crossoverRate,
+            happened: houveCruzamento,
+            cut: corte
+          },
+
+          offspring: [
+            transformarEmTexto(filho1),
+            transformarEmTexto(filho2)
+          ],
+
+          discardedSecond: !manterDois,
+          children: resultadosFilhos
+        });
+      }
+
+      this.populacao = novaPopulacao;
+      this.geracao++;
+
+      this.registros.push(registro);
+
+      this.registrar();
+
+      return registro;
+    }
+
+    // Executa até chegar à última geração.
+    executarAteOFim() {
+      while (!this.finalizado) {
+        this.proximaGeracao();
+      }
+
+      return this;
+    }
   }
 
   return {
-    createRng, randInt, seedToState,
-    geneLetter, toStr, fromStr,
-    evaluate, repair, crossover, mutate,
-    drawDistinct, tournamentWinner, eliteIndices,
-    Engine,
+    criarAleatorio,
+    sortearInteiro,
+    converterSemente,
+
+    letraGene,
+    transformarEmTexto,
+    transformarEmGenes,
+
+    avaliar,
+    reparar,
+    cruzar,
+    mutar,
+
+    sortearIndices,
+    vencedorTorneio,
+    obterMelhores,
+
+    AlgoritmoGenetico
   };
 });
