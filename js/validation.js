@@ -1,8 +1,4 @@
-/*
- * Testes de validação da seção 6 do enunciado.
- * Usa as mesmas funções do simulador (js/ga.js). Roda no navegador
- * (botão "Executar testes") e no Node (tests/run-tests.js).
- */
+
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./ga.js'));
   else root.Validation = factory(root.GA);
@@ -22,7 +18,7 @@
     minimumFractionDigits: c % 100 === 0 ? 0 : 2, maximumFractionDigits: 2,
   }).replace(/\u00a0/g, ' ');
   const pts = (h) => (h / 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-  const L = GA.geneLetter;
+  const L = GA.letraGene;
   const names = (sel) => sel.length ? sel.map(L).join(' e ') : 'nenhum';
   const repairPath = (start, steps) => [start].concat(steps.map((s) => s.after)).join(' → ');
 
@@ -39,7 +35,7 @@
 
     /* 6.2 Avaliação de uma solução */
     {
-      const ev = GA.evaluate(GA.fromStr('1100'), PROJECTS, BUDGET);
+      const ev = GA.avaliar(GA.transformarEmGenes('1100'), PROJECTS, BUDGET);
       const obtained = `projetos ${names(ev.selected)}; custo ${brl(ev.costCents)}; benefício ${pts(ev.benefitHund)}; saldo ${brl(ev.balanceCents)}; ${ev.feasible ? 'viável' : 'inviável'}; aptidão ${pts(ev.benefitHund)}`;
       add({
         id: '6.2', title: 'Avaliação de uma solução',
@@ -57,7 +53,7 @@
       const found = {};
       for (let m = 0; m < 16; m++) {
         const s = m.toString(2).padStart(4, '0');
-        const ev2 = GA.evaluate(GA.fromStr(s), PROJECTS, BUDGET);
+        const ev2 = GA.avaliar(GA.transformarEmGenes(s), PROJECTS, BUDGET);
         if (ev2.feasible) found[s] = [ev2.costCents, ev2.benefitHund];
       }
       const ok = Object.keys(found).length === 9 &&
@@ -73,7 +69,7 @@
 
     /* 6.3 Reparação */
     {
-      const rep = GA.repair(GA.fromStr('1111'), PROJECTS, BUDGET);
+      const rep = GA.reparar(GA.transformarEmGenes('1111'), PROJECTS, BUDGET);
       const desc = rep.steps.map((s) => `${s.before} (${brl(s.beforeCostCents)}; ${pts(s.beforeBenefitHund)}) remove ${L(s.removed)}`).join(' → ');
       const ev = rep.evaluation;
       add({
@@ -90,24 +86,24 @@
 
     /* 6.4 Cruzamento e mutação controlados */
     {
-      const [c1, c2] = GA.crossover(GA.fromStr('1100'), GA.fromStr('0011'), 2);
-      const m1 = GA.mutate(c1, [true, false, false, false]);
-      const m2 = GA.mutate(c2, [false, false, false, false]);
-      const r1 = GA.repair(m1.genes, PROJECTS, BUDGET);
-      const r2 = GA.repair(m2.genes, PROJECTS, BUDGET);
+      const [c1, c2] = GA.cruzar(GA.transformarEmGenes('1100'), GA.transformarEmGenes('0011'), 2);
+      const m1 = GA.mutar(c1, [true, false, false, false]);
+      const m2 = GA.mutar(c2, [false, false, false, false]);
+      const r1 = GA.reparar(m1.genes, PROJECTS, BUDGET);
+      const r2 = GA.reparar(m2.genes, PROJECTS, BUDGET);
       add({
         id: '6.4', title: 'Cruzamento forçado com corte após o 2º gene',
         input: 'pai 1 = 1100; pai 2 = 0011; corte = 2',
         expected: '11|00 + 00|11 → filho 1 = 1111; filho 2 = 0000',
-        obtained: `filho 1 = ${GA.toStr(c1)}; filho 2 = ${GA.toStr(c2)}`,
-        pass: GA.toStr(c1) === '1111' && GA.toStr(c2) === '0000',
+        obtained: `filho 1 = ${GA.transformarEmTexto(c1)}; filho 2 = ${GA.transformarEmTexto(c2)}`,
+        pass: GA.transformarEmTexto(c1) === '1111' && GA.transformarEmTexto(c2) === '0000',
       });
       add({
         id: '6.4', title: 'Mutação controlada (só o 1º gene do filho 1)',
         input: 'filho 1 = 1111, máscara 1000; filho 2 = 0000, sem mutação',
         expected: 'filho 1 = 0111; filho 2 = 0000',
-        obtained: `filho 1 = ${GA.toStr(m1.genes)} (genes invertidos: ${m1.flipped.map(L).join(', ') || 'nenhum'}); filho 2 = ${GA.toStr(m2.genes)}`,
-        pass: GA.toStr(m1.genes) === '0111' && GA.toStr(m2.genes) === '0000',
+        obtained: `filho 1 = ${GA.transformarEmTexto(m1.genes)} (genes invertidos: ${m1.flipped.map(L).join(', ') || 'nenhum'}); filho 2 = ${GA.transformarEmTexto(m2.genes)}`,
+        pass: GA.transformarEmTexto(m1.genes) === '0111' && GA.transformarEmTexto(m2.genes) === '0000',
       });
       add({
         id: '6.4', title: 'Reparação e avaliação dos filhos',
@@ -121,9 +117,9 @@
 
     /* 6.4 Limites das taxas, no motor real */
     {
-      const e0 = new GA.Engine(baseConfig({ mutationRate: 0, generations: 10 })).runToEnd();
+      const e0 = new GA.AlgoritmoGenetico(baseConfig({ mutationRate: 0, generations: 10 })).executarAteOFim();
       let flips = 0, kids = 0;
-      e0.logs.slice(1).forEach((l) => l.pairs.forEach((p) => p.children.forEach((c) => { kids++; flips += c.flipped.length; })));
+      e0.registros.slice(1).forEach((l) => l.pairs.forEach((p) => p.children.forEach((c) => { kids++; flips += c.flipped.length; })));
       add({
         id: '6.4', title: 'Mutação 0%',
         input: 'dados 6.1; população 20; 10 gerações; mutação 0%; semente 42',
@@ -132,9 +128,9 @@
         pass: kids > 0 && flips === 0,
       });
 
-      const e1 = new GA.Engine(baseConfig({ mutationRate: 1, generations: 10 })).runToEnd();
+      const e1 = new GA.AlgoritmoGenetico(baseConfig({ mutationRate: 1, generations: 10 })).executarAteOFim();
       let allFlipped = true; kids = 0;
-      e1.logs.slice(1).forEach((l) => l.pairs.forEach((p) => p.children.forEach((c) => {
+      e1.registros.slice(1).forEach((l) => l.pairs.forEach((p) => p.children.forEach((c) => {
         kids++;
         const comp = c.beforeMutation.split('').map((b) => (b === '1' ? '0' : '1')).join('');
         if (c.afterMutation !== comp || c.flipped.length !== 4) allFlipped = false;
@@ -147,9 +143,9 @@
         pass: kids > 0 && allFlipped,
       });
 
-      const ec = new GA.Engine(baseConfig({ crossoverRate: 0, mutationRate: 0, generations: 10 })).runToEnd();
+      const ec = new GA.AlgoritmoGenetico(baseConfig({ crossoverRate: 0, mutationRate: 0, generations: 10 })).executarAteOFim();
       let copies = true, pairs = 0;
-      ec.logs.slice(1).forEach((l) => l.pairs.forEach((p) => {
+      ec.registros.slice(1).forEach((l) => l.pairs.forEach((p) => {
         pairs++;
         if (p.crossover.happened || p.offspring[0] !== p.parents[0].chromosome || p.offspring[1] !== p.parents[1].chromosome) copies = false;
       }));
@@ -161,9 +157,9 @@
         pass: pairs > 0 && copies,
       });
 
-      const e100 = new GA.Engine(baseConfig({ crossoverRate: 1, generations: 10 })).runToEnd();
+      const e100 = new GA.AlgoritmoGenetico(baseConfig({ crossoverRate: 1, generations: 10 })).executarAteOFim();
       let allCross = true, cutsOk = true;
-      e100.logs.slice(1).forEach((l) => l.pairs.forEach((p) => {
+      e100.registros.slice(1).forEach((l) => l.pairs.forEach((p) => {
         if (!p.crossover.happened) allCross = false;
         if (!(p.crossover.cut >= 1 && p.crossover.cut <= 3)) cutsOk = false;
       }));
@@ -179,7 +175,7 @@
     /* 6.4 Seleção por torneio isolada */
     {
       const fit = [700, 1100, 1200];
-      const w = GA.tournamentWinner([0, 1, 2], fit);
+      const w = GA.vencedorTorneio([0, 1, 2], fit);
       add({
         id: '6.4', title: 'Torneio',
         input: 'candidatos #0 = 1000 (7), #1 = 0011 (11), #2 = 1100 (12)',
@@ -188,7 +184,7 @@
         pass: w === 2,
       });
       const fitTie = [800, 800, 700];
-      const wt = GA.tournamentWinner([1, 0, 2], fitTie);
+      const wt = GA.vencedorTorneio([1, 0, 2], fitTie);
       add({
         id: '6.4', title: 'Torneio com empate',
         input: 'população #0 = 0110 (8), #1 = 0001 (8), #2 = 1000 (7); candidatos sorteados na ordem #1, #0, #2',
@@ -196,10 +192,10 @@
         obtained: `vence #${wt} = ${['0110', '0001', '1000'][wt]}`,
         pass: wt === 0,
       });
-      const rng = GA.createRng(7);
+      const rng = GA.criarAleatorio(7);
       let distinct = true;
       for (let t = 0; t < 2000; t++) {
-        const c = GA.drawDistinct(rng, 20, 5);
+        const c = GA.sortearIndices(rng, 20, 5);
         if (new Set(c).size !== 5 || c.some((x) => x < 0 || x >= 20)) distinct = false;
       }
       add({
@@ -213,12 +209,12 @@
 
     /* 6.6 Limites de orçamento */
     {
-      const e = new GA.Engine(baseConfig({ budgetCents: 0 })).runToEnd();
+      const e = new GA.AlgoritmoGenetico(baseConfig({ budgetCents: 0 })).executarAteOFim();
       let all0 = true;
       // geração atual e geração 0 (registrada no log)
-      if (!e.logs[0].individuals.every((i) => i.final.chromosome === '0000')) all0 = false;
-      if (!e.population.every((p) => p.ev.chromosome === '0000' && p.ev.benefitHund === 0)) all0 = false;
-      if (!e.history.every((h) => h.bestHund === 0 && h.meanHund === 0)) all0 = false;
+      if (!e.registros[0].individuals.every((i) => i.final.chromosome === '0000')) all0 = false;
+      if (!e.populacao.every((p) => p.ev.chromosome === '0000' && p.ev.benefitHund === 0)) all0 = false;
+      if (!e.historico.every((h) => h.bestHund === 0 && h.meanHund === 0)) all0 = false;
       add({
         id: '6.6', title: 'Orçamento R$ 0',
         input: 'dados 6.1; orçamento R$ 0; demais parâmetros da 6.5',
@@ -226,7 +222,7 @@
         obtained: all0 ? 'todos os indivíduos de todas as 51 gerações são 0000, aptidão 0' : 'há indivíduo diferente de 0000',
         pass: all0,
       });
-      const ev = GA.evaluate(GA.fromStr('1111'), PROJECTS, 1400000);
+      const ev = GA.avaliar(GA.transformarEmGenes('1111'), PROJECTS, 1400000);
       add({
         id: '6.6', title: 'Orçamento R$ 14.000',
         input: 'cromossomo 1111; orçamento R$ 14.000',
@@ -247,14 +243,14 @@
     });
 
     {
-      const a = new GA.Engine(baseConfig()).runToEnd();
-      const b = new GA.Engine(baseConfig()).runToEnd();
-      const same = JSON.stringify(a.history) === JSON.stringify(b.history);
+      const a = new GA.AlgoritmoGenetico(baseConfig()).executarAteOFim();
+      const b = new GA.AlgoritmoGenetico(baseConfig()).executarAteOFim();
+      const same = JSON.stringify(a.historico) === JSON.stringify(b.historico);
       let eliteOk = true;
-      for (let g = 1; g < a.logs.length; g++) {
-        const prevBest = a.history[g - 1].bestChromosome;
-        const el = a.logs[g].elite[0];
-        if (!el || el.chromosome !== prevBest || a.history[g].bestHund < a.history[g - 1].bestHund) eliteOk = false;
+      for (let g = 1; g < a.registros.length; g++) {
+        const prevBest = a.historico[g - 1].bestChromosome;
+        const el = a.registros[g].elite[0];
+        if (!el || el.chromosome !== prevBest || a.historico[g].bestHund < a.historico[g - 1].bestHund) eliteOk = false;
       }
       add({
         id: '6.5', title: 'Reprodutibilidade e elitismo',
@@ -269,17 +265,17 @@
   }
 
   function fullRun(over) {
-    const e = new GA.Engine(baseConfig(over)).runToEnd();
+    const e = new GA.AlgoritmoGenetico(baseConfig(over)).executarAteOFim();
     let monotoneBestSoFar = true, monotoneBest = true;
-    for (let i = 1; i < e.history.length; i++) {
-      if (e.history[i].bestSoFarHund < e.history[i - 1].bestSoFarHund) monotoneBestSoFar = false;
-      if (e.history[i].bestHund < e.history[i - 1].bestHund) monotoneBest = false;
+    for (let i = 1; i < e.historico.length; i++) {
+      if (e.historico[i].bestSoFarHund < e.historico[i - 1].bestSoFarHund) monotoneBestSoFar = false;
+      if (e.historico[i].bestHund < e.historico[i - 1].bestHund) monotoneBest = false;
     }
-    const best = e.best.ev;
-    const re = GA.evaluate(e.best.genes, PROJECTS, BUDGET);
+    const best = e.melhor.ev;
+    const re = GA.avaliar(e.melhor.genes, PROJECTS, BUDGET);
     const consistent = re.costCents === best.costCents && re.benefitHund === best.benefitHund &&
       best.costCents <= BUDGET && best.benefitHund <= 1200;
-    return { engine: e, records: e.history.length, monotoneBestSoFar, monotoneBest, best, bestGeneration: e.best.generation, consistent };
+    return { engine: e, records: e.historico.length, monotoneBestSoFar, monotoneBest, best, bestGeneration: e.melhor.generation, consistent };
   }
 
   /** Comparação das taxas de mutação de 1% e 20%, sementes 1 a 5. */
@@ -287,7 +283,7 @@
     return [0.01, 0.20].map((rate) => {
       const runs = [1, 2, 3, 4, 5].map((seed) => {
         const r = fullRun({ mutationRate: rate, seed });
-        const meanLast = r.engine.history[r.engine.history.length - 1].meanHund;
+        const meanLast = r.engine.historico[r.engine.historico.length - 1].meanHund;
         return { seed, bestHund: r.best.benefitHund, chromosome: r.best.chromosome, generation: r.bestGeneration, finalMeanHund: meanLast };
       });
       const mean = runs.reduce((s, r) => s + r.bestHund, 0) / runs.length;
