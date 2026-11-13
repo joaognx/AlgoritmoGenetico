@@ -1,8 +1,4 @@
-/*
- * Interface do simulador: edição dos dados, validação, controles
- * (Executar, Pausar, Avançar, Reiniciar), métricas, histórico, gráfico,
- * registro textual e animação das operações reais do AG.
- */
+// Interface do simulador (a lógica do AG fica em ga.js)
 (function () {
   'use strict';
 
@@ -18,7 +14,7 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const L = GA.geneLetter;
 
-  /* ---------------- Dados iniciais (seção 6.1) ---------------- */
+  // Dados iniciais (seção 6.1)
   const EXAMPLE = [
     { name: 'Melhoria da iluminação', cost: '4000', benefit: '7' },
     { name: 'Instalação de bicicletários', cost: '3000', benefit: '5' },
@@ -31,7 +27,7 @@
   let projects = EXAMPLE.map((p) => Object.assign({}, p));
   let engine = null;
   let cfg = null;
-  let mode = 'idle';           // idle | running | paused | finished
+  let mode = 'idle'; // idle, running, paused ou finished
   let dirty = false;
   let runToken = 0;
   let animToken = 0;
@@ -40,7 +36,7 @@
   let renderedHistory = 0;
   let lastValidation = null;
 
-  /* ---------------- Formatação ---------------- */
+  // Formatação
   const brl = V.brl;
   const pts = V.pts;
   const mean2 = (h) => (h / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -51,7 +47,7 @@
   const listPt = (arr) => arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' e ' + arr[arr.length - 1];
   const ratioTxt = (bh, cc) => (bh / cc * 1000).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 
-  /* ---------------- Validação ---------------- */
+  // Validação
   const RE_MONEY = /^\d{1,12}([.,]\d{1,2})?$/;
   const RE_BEN = /^\d{1,9}([.,]\d{1,2})?$/;
   const RE_INT = /^\d{1,9}$/;
@@ -69,7 +65,6 @@
     const errors = {};
     const out = {};
 
-    // Projetos
     const norm = [];
     projects.forEach((p, i) => {
       const name = p.name.trim();
@@ -149,7 +144,7 @@
     });
   }
 
-  /* ---------------- Tabela de projetos ---------------- */
+  // Tabela de projetos
   function renderProjects() {
     const body = $('#projects-body');
     body.innerHTML = '';
@@ -203,10 +198,10 @@
     $('#add-project').disabled = projects.length >= MAX_P;
   }
 
-  // Cromossomos e códigos não devem ser “traduzidos” pelo navegador
+  // evita que o tradutor do navegador mexa nos cromossomos
   const noTranslate = (root) => root.querySelectorAll('code').forEach((c) => c.setAttribute('translate', 'no'));
 
-  /* ---------------- Desfazer, endereço com a configuração ---------------- */
+  // Desfazer, endereço com a configuração
   const FIELD_KEYS = { budget: 'b', pop: 'n', gens: 'g', cross: 'x', mut: 'm', tour: 't', elite: 'e', seed: 's' };
   let undoSnap = null, undoTimer = null, chartW = 0;
 
@@ -230,7 +225,7 @@
   }
   function hideUndo() { $('#undo').hidden = true; undoSnap = null; }
 
-  // A configuração aplicada vai para o endereço (?cfg=…), para reabrir ou compartilhar a mesma execução.
+  // salva a configuração na URL (?cfg=...)
   function writeUrl() {
     try {
       const snap = snapshot();
@@ -241,7 +236,7 @@
       const url = new URL(location.href);
       url.searchParams.set('cfg', b64);
       history.replaceState(null, '', url);
-    } catch (e) { /* endereço é um extra; a simulação segue sem ele */ }
+    } catch (e) { /* ignora */ }
   }
   function readUrl() {
     try {
@@ -252,10 +247,10 @@
       if (!Array.isArray(data.p) || data.p.length < MIN_P || data.p.length > MAX_P) return;
       projects = data.p.map((r) => ({ name: String(r[0]), cost: String(r[1]), benefit: String(r[2]) }));
       Object.entries(FIELD_KEYS).forEach(([k, short]) => { if (data[short] !== undefined) $('#f-' + k).value = String(data[short]); });
-    } catch (e) { /* endereço inválido: fica o exemplo */ }
+    } catch (e) { /* URL inválida, usa o exemplo */ }
   }
 
-  /* ---------------- Estado e controles ---------------- */
+  // Estado e controles
   function onDataChanged() {
     lastValidation = validate();
     showErrors(lastValidation);
@@ -368,7 +363,7 @@
     updateControls();
   }
 
-  /* ---------------- Renderização ---------------- */
+  // Renderização
   function renderAll() {
     if (!engine) return;
     const h = engine.history[engine.history.length - 1];
@@ -463,14 +458,14 @@
     sel.value = String(selectedLogGen);
   }
 
-  /* ---------------- Registro textual ---------------- */
+  // Registro textual
   function repairText(start, steps) {
     if (!steps.length) return null;
     return `${[start].concat(steps.map((s) => s.after)).join(' → ')} (remove ${steps.map((s) => L(s.removed)).join(', depois ')})`;
   }
 
   function pairSummary(log, p) {
-    // Formato do exemplo do enunciado
+    // mesmo formato do exemplo do enunciado
     const parts = [`Pais: ${p.parents[0].chromosome} e ${p.parents[1].chromosome}`];
     parts.push(p.crossover.happened ? `corte após o ${ORD[p.crossover.cut - 1]} gene` : 'sem cruzamento');
     parts.push(`filhos: ${p.offspring[0]} e ${p.offspring[1]}` + (p.discardedSecond ? ' (filho 2 descartado)' : ''));
@@ -563,7 +558,7 @@
     $('#stage-body').innerHTML = '';
   }
 
-  /* ---------------- Gráfico (canvas, sem bibliotecas) ---------------- */
+  // Gráfico (canvas, sem bibliotecas)
   function drawChart() {
     const cv = $('#chart');
     const css = getComputedStyle(document.documentElement);
@@ -619,7 +614,7 @@
     }
   }
 
-  /* ---------------- Animação ---------------- */
+  // Animação
   const ABORT = { abort: true };
   const SPEEDS = [0.25, 0.5, 1, 2, 4];
   const speed = () => SPEEDS[Number($('#anim-speed').value)];
@@ -654,7 +649,7 @@
     if (n === undefined) n = cfg.projects.length;
     const body = $('#stage-body');
     body.innerHTML = '';
-    // linha com as letras dos genes, alinhada aos bits
+    // linha com as letras dos genes
     const row = el('div', 'letters');
     row.appendChild(el('span', 'sr-label', ''));
     const c = el('div', 'chrom');
@@ -667,10 +662,7 @@
     return body;
   }
 
-  /**
-   * Cromossomo animável. model = { bits: [0/1], cls: ['o1'|'o2'|'mut'|'elite-bit'|''] }
-   * cut: quantidade de genes antes do corte, ou null.
-   */
+  // model = { bits, cls }; cut = genes antes do corte (ou null)
   function modelChrom(model, cut) {
     const c = el('div', 'chrom');
     c.setAttribute('translate', 'no');
@@ -684,7 +676,7 @@
       for (let i = 0; i < model.bits.length; i++) (i < cut ? head : tail).appendChild(mk(i));
       const line = el('span', 'cut');
       c.append(head, line, tail);
-      // posição da linha do corte: depois do último bit da cabeça (30px + 4px de espaço por bit, + 3px de padding)
+      // cada bit ocupa 34px (30 + 4 de espaço)
       line.style.left = `${3 + cut * 34 + 4}px`;
     } else {
       const seg = el('span', 'seg');
@@ -751,7 +743,7 @@
     const n = ctx.projects.length;
     const head = p.controlled ? '<span class="tag">Teste 6.4.</span> ' : `<span class="tag">Geração ${g}, par ${p.pair}.</span> `;
 
-    /* 1. Torneios */
+    // 1. torneios
     for (let k = 0; k < (p.controlled ? 0 : 2); k++) {
       const t = p.tournaments[k];
       const body = stageClear(n);
@@ -768,7 +760,7 @@
       await wait(1500, tok);
     }
 
-    /* 2. Cruzamento */
+    // 2. cruzamento
     const cx = p.crossover;
     const P1 = modelFrom(p.parents[0].chromosome, 'o1');
     const P2 = modelFrom(p.parents[1].chromosome, 'o2');
@@ -819,7 +811,7 @@
       await wait(1500, tok);
     }
 
-    /* 3. Mutação */
+    // 3. mutação
     for (let ci = 0; ci < p.children.length; ci++) {
       const ch = p.children[ci];
       const row = kidRows[ci];
@@ -843,7 +835,7 @@
       await wait(1000, tok);
     }
 
-    /* 4. Reparação */
+    // 4. reparação
     for (let ci = 0; ci < p.children.length; ci++) {
       const ch = p.children[ci];
       const K = kids[ci];
@@ -902,7 +894,7 @@
       await wait(1100, tok);
     }
 
-    /* 5. Entrada na nova população */
+    // 5. filhos entram na nova população
     body = stageClear(n);
     p.children.forEach((ch, ci) => {
       body.appendChild(srow(`<strong>Filho ${ci + 1}</strong> → #${ch.placedAt}`, modelChrom(kids[ci]), `aptidão <strong>${pts(ch.final.benefitHund)}</strong>`));
@@ -912,7 +904,7 @@
     await wait(1400, tok);
   }
 
-  /* Par do teste 6.4 montado com as funções reais do núcleo */
+  // teste 6.4 usando as funções do ga.js
   async function animateTest64() {
     if (mode === 'running') pause();
     const P = V.PROJECTS, B = V.BUDGET;
@@ -937,7 +929,7 @@
     finally { if (tok === animToken) animating = false; }
   }
 
-  /* ---------------- Testes na interface ---------------- */
+  // Testes na interface
   function runTestsUI() {
     const out = $('#tests-out');
     out.innerHTML = '<p class="muted">Executando…</p>';
@@ -971,7 +963,7 @@
     }, 20);
   }
 
-  /* ---------------- Inicialização ---------------- */
+  // Inicialização
   function fillDefaults() {
     Object.entries(DEFAULTS).forEach(([k, v]) => { $('#f-' + k).value = v; });
   }
